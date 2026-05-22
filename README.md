@@ -38,8 +38,17 @@
 
 ### Требования
 
-- [Docker](https://docs.docker.com/get-docker/) 24+
-- [Docker Compose](https://docs.docker.com/compose/install/) v2
+- Docker 19+ (поддерживаются как старые, так и новые версии)
+- Git
+
+### Проверь версию Docker Compose
+
+```bash
+docker compose version      # новый синтаксис (Docker 20.10+)
+docker-compose --version    # старый синтаксис (отдельная утилита)
+```
+
+Используй ту команду, которая работает на твоём сервере.
 
 ### Запуск
 
@@ -50,13 +59,18 @@ cd analiz
 
 # 2. Создать файл окружения
 cp .env.example .env
-# Обязательно отредактируй JWT_SECRET и ADMIN_PASSWORD в .env!
+# Открой .env и обязательно смени JWT_SECRET и ADMIN_PASSWORD!
+nano .env
 
-# 3. Запустить всё одной командой
-docker compose up --build -d
+# 3. Запустить (выбери нужный вариант)
+docker compose up --build -d        # Docker 20.10+ (новый)
+# ИЛИ
+docker-compose up --build -d        # старый docker-compose
 
 # 4. Проверить что всё работает
 docker compose ps
+# ИЛИ
+docker-compose ps
 ```
 
 ### Что запустится
@@ -75,7 +89,9 @@ docker compose ps
 ### Остановить и удалить
 
 ```bash
-docker compose down          # остановить контейнеры
+docker compose down          # остановить контейнеры (новый)
+docker-compose down          # остановить контейнеры (старый)
+
 docker compose down -v       # остановить и удалить данные (БД, файлы)
 ```
 
@@ -85,6 +101,20 @@ docker compose down -v       # остановить и удалить данны
 docker compose logs -f backend    # логи API
 docker compose logs -f worker     # логи Celery
 docker compose logs -f frontend   # логи Nginx
+# (заменить на docker-compose если старая версия)
+```
+
+### Установить docker-compose на старый сервер (если нет)
+
+```bash
+# Ubuntu / Debian
+sudo apt-get update && sudo apt-get install -y docker-compose
+
+# Или вручную (последняя версия)
+sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" \
+  -o /usr/local/bin/docker-compose
+sudo chmod +x /usr/local/bin/docker-compose
+docker-compose --version
 ```
 
 ---
