@@ -73,3 +73,87 @@ class DashboardKPI(BaseModel):
     label: str
     value: float
     trend: Optional[float] = None
+
+
+class UserUpdate(BaseModel):
+    full_name: Optional[str] = None
+    role: Optional[Role] = None
+    department: Optional[str] = None
+    is_active: Optional[bool] = None
+    password: Optional[str] = None
+
+
+class DepartmentCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
+    color: Optional[str] = None
+
+
+class DepartmentOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    name: str
+    description: Optional[str]
+    color: Optional[str]
+    created_at: datetime
+
+
+class AccessGrant(BaseModel):
+    user_id: int
+    dataset_id: int
+    permission: str = "view"
+
+
+class AccessOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    user_id: int
+    dataset_id: int
+    permission: str
+    granted_by: Optional[int]
+    granted_at: datetime
+
+
+class MeetingCreate(BaseModel):
+    title: str
+    description: Optional[str] = None
+    starts_at: datetime
+    ends_at: Optional[datetime] = None
+    location: Optional[str] = None
+    department: Optional[str] = None
+    participant_ids: list[int] = []
+
+
+class MeetingUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    starts_at: Optional[datetime] = None
+    ends_at: Optional[datetime] = None
+    location: Optional[str] = None
+    status: Optional[str] = None
+
+
+class MeetingParticipantOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    user_id: int
+    response: str
+
+
+class MeetingOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    title: str
+    description: Optional[str]
+    starts_at: datetime
+    ends_at: Optional[datetime]
+    location: Optional[str]
+    organizer_id: Optional[int]
+    department: Optional[str]
+    status: str
+    created_at: datetime
+    participants: list[MeetingParticipantOut] = []
