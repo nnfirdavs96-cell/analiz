@@ -1,9 +1,9 @@
-import { FormEvent, useCallback, useState } from "react";
+import { FormEvent, useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Upload as UploadIcon, FileSpreadsheet, X, FileJson, FileText, Database } from "lucide-react";
 import toast from "react-hot-toast";
-import { api } from "../api";
+import { api, Department } from "../api";
 
 const ACCEPT = ".xlsx,.xls,.csv,.tsv,.txt,.json,.jsonl,.ndjson,.parquet";
 
@@ -24,10 +24,15 @@ export default function Upload() {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [department, setDepartment] = useState("");
+  const [departments, setDepartments] = useState<Department[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const nav = useNavigate();
+
+  useEffect(() => {
+    api.get<Department[]>("/departments").then((r) => setDepartments(r.data)).catch(() => {});
+  }, []);
 
   const handleFiles = useCallback((files: FileList | null) => {
     if (!files || files.length === 0) return;
@@ -80,6 +85,13 @@ export default function Upload() {
         <p className="text-sm text-slate-500 mt-1">
           Excel, CSV, TSV, JSON, JSONL, Parquet
         </p>
+      </div>
+
+      <div className="card p-4 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 text-sm text-amber-800 dark:text-amber-300">
+        <strong>Поддерживаемые форматы:</strong> .xlsx, .xls, .csv, .tsv, .json, .jsonl, .parquet<br />
+        <span className="text-amber-600 dark:text-amber-400">
+          Формат .pbix (Power BI) не поддерживается — пожалуйста, экспортируйте данные из Power BI в Excel или CSV.
+        </span>
       </div>
 
       <form onSubmit={submit} className="card p-6 space-y-5">
@@ -142,7 +154,7 @@ export default function Upload() {
                 Перетащите файл сюда или нажмите для выбора
               </p>
               <p className="text-xs text-slate-500 mt-1">
-                .xlsx · .csv · .tsv · .json · .jsonl · .parquet
+                .xlsx · .csv · .tsv · .json · .jsonl · .ndjson · .parquet
               </p>
             </div>
           )}
@@ -166,13 +178,16 @@ export default function Upload() {
             <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
               Отдел
             </label>
-            <input
-              type="text"
+            <select
               value={department}
               onChange={(e) => setDepartment(e.target.value)}
-              placeholder="Продажи, Финансы…"
               className="input"
-            />
+            >
+              <option value="">— Без отдела —</option>
+              {departments.map((d) => (
+                <option key={d.id} value={d.name}>{d.name}</option>
+              ))}
+            </select>
           </div>
         </div>
 

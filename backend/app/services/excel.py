@@ -1,7 +1,9 @@
 import json
+import math
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 import pandas as pd
 
 
@@ -16,9 +18,9 @@ def parse_table(file_path: str) -> tuple[list[dict[str, Any]], list[dict[str, st
     if suffix in {".xlsx", ".xls"}:
         df = pd.read_excel(file_path, sheet_name=0)
     elif suffix == ".csv":
-        df = pd.read_csv(file_path)
+        df = _read_csv_auto(file_path)
     elif suffix in {".tsv", ".txt"}:
-        df = pd.read_csv(file_path, sep="\t")
+        df = pd.read_csv(file_path, sep="\t", encoding_errors="replace")
     elif suffix == ".json":
         df = _read_json(file_path)
     elif suffix in {".jsonl", ".ndjson"}:
@@ -44,14 +46,64 @@ def parse_table(file_path: str) -> tuple[list[dict[str, Any]], list[dict[str, st
             kind = "text"
         columns_meta.append({"name": col, "type": kind})
 
-    rows = df.where(pd.notnull(df), None).to_dict(orient="records")
+    # Convert to object dtype so that NaN/NaT become None rather than staying as float NaN
+    df = df.astype(object).where(pd.notnull(df), None)
+    rows = df.to_dict(orient="records")
+
     for r in rows:
         for k, v in list(r.items()):
-            if hasattr(v, "isoformat"):
-                r[k] = v.isoformat()
-            elif isinstance(v, (bytes, bytearray)):
-                r[k] = v.decode("utf-8", errors="replace")
+            r[k] = _to_json_safe(v)
+
     return rows, columns_meta
+
+
+def _to_json_safe(v: Any) -> Any:
+    """Convert a value to a JSON-serializable Python native type."""
+    if v is None:
+        return None
+    # numpy / pandas NA types
+    try:
+        if pd.isnull(v):
+            return None
+    except (TypeError, ValueError):
+        pass
+    # numpy integer
+    if isinstance(v, np.integer):
+        return int(v)
+    # numpy float (includes NaN check)
+    if isinstance(v, np.floating):
+        f = float(v)
+        return None if math.isnan(f) or math.isinf(f) else f
+    # numpy bool
+    if isinstance(v, np.bool_):
+        return bool(v)
+    # Python float NaN / Inf
+    if isinstance(v, float):
+        return None if math.isnan(v) or math.isinf(v) else v
+    # datetime-like objects
+    if hasattr(v, "isoformat"):
+        try:
+            return v.isoformat()
+        except (ValueError, AttributeError):
+            return None
+    # bytes
+    if isinstance(v, (bytes, bytearray)):
+        return v.decode("utf-8", errors="replace")
+    # native Python scalars are already JSON-safe
+    if isinstance(v, (int, float, str, bool)):
+        return v
+    # fallback
+    return str(v)
+
+
+def _read_csv_auto(file_path: str) -> pd.DataFrame:
+    """Try UTF-8 first, fall back to cp1251 (common for Russian Excel exports)."""
+    for enc in ("utf-8", "utf-8-sig", "cp1251", "latin-1"):
+        try:
+            return pd.read_csv(file_path, encoding=enc)
+        except (UnicodeDecodeError, Exception):
+            continue
+    return pd.read_csv(file_path, encoding="latin-1", encoding_errors="replace")
 
 
 def _read_json(file_path: str) -> pd.DataFrame:

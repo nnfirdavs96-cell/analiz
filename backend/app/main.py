@@ -32,16 +32,30 @@ app.include_router(meetings.router)
 
 @app.on_event("startup")
 def on_startup() -> None:
-    # Ensure PG enum 'role' has all values (idempotent migration)
+    # Idempotent schema migrations (add new columns / enum values to existing tables)
     try:
         with engine.connect() as conn:
             conn = conn.execution_options(isolation_level="AUTOCOMMIT")
+            # Expand Role enum with all values
             for r in Role:
-                conn.execute(
-                    text(f"ALTER TYPE role ADD VALUE IF NOT EXISTS '{r.value}'")
-                )
+                try:
+                    conn.execute(text(f"ALTER TYPE role ADD VALUE IF NOT EXISTS '{r.value}'"))
+                except Exception:
+                    pass
+            # Add columns that may be missing from existing tables
+            column_migrations = [
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS department VARCHAR(100)",
+                "ALTER TABLE datasets ADD COLUMN IF NOT EXISTS department VARCHAR(100)",
+                "ALTER TABLE datasets ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP",
+                "ALTER TABLE datasets ADD COLUMN IF NOT EXISTS description TEXT",
+            ]
+            for sql in column_migrations:
+                try:
+                    conn.execute(text(sql))
+                except Exception:
+                    pass
     except Exception as e:
-        logger.debug("Role enum migration skipped: {}", e)
+        logger.debug("Schema migration error: {}", e)
 
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
